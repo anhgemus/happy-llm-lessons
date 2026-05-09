@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Happy-LLM Lessons</title>
+  <meta name="description" content="Self-paced LLM education from the Happy-LLM repository.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-primary: #111827;
+      --color-secondary: #4B5563;
+      --color-tertiary: #2563EB;
+      --color-neutral: #F9FAFB;
+      --color-code-bg: #F3F4F6;
+      --color-accent: #10B981;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+      --rounded-sm: 4px;
+      --rounded-md: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 48px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.75;
+      color: var(--color-primary);
+      background-color: var(--color-neutral);
+      padding: var(--spacing-xl) var(--spacing-md);
+    }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    header {
+      margin-bottom: var(--spacing-xl);
+      padding-bottom: var(--spacing-lg);
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .subtitle {
+      font-size: 1.125rem;
+      color: var(--color-secondary);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .badge {
+      display: inline-block;
+      background-color: var(--color-accent);
+      color: #FFFFFF;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--rounded-sm);
+      margin-right: 8px;
+    }
+
+    .lesson-list { list-style: none; }
+
+    .lesson-item {
+      background: #FFFFFF;
+      border-radius: var(--rounded-md);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-md);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: box-shadow 0.15s ease;
+    }
+
+    .lesson-item:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .lesson-number {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--color-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .lesson-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .lesson-meta {
+      font-size: 0.875rem;
+      color: var(--color-secondary);
+    }
+
+    footer {
+      margin-top: var(--spacing-xl);
+      padding-top: var(--spacing-lg);
+      border-top: 1px solid #E5E7EB;
+      font-size: 0.875rem;
+      color: var(--color-secondary);
+    }
+
+    footer a { color: var(--color-tertiary); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📚 Happy-LLM Lessons</h1>
+      <p class="subtitle">Self-paced LLM education from the <a href="https://github.com/datawhalechina/happy-llm" target="_blank" rel="noopener">Happy-LLM</a> repository.</p>
+      <div>
+        <span class="badge">Daily Lessons</span>
+        <span class="badge">9am & 8pm PST</span>
+      </div>
+    </header>
+
+    <main>
+      <ul class="lesson-list">
+        <li>
+          <a href="lesson-01.html" class="lesson-item">
+            <div class="lesson-number">Lesson 01</div>
+            <div class="lesson-title">The LLM Training Pipeline</div>
+            <div class="lesson-meta">May 9, 2026 · Chapter 6 · Pretrain → SFT → PEFT → Alignment</div>
+          </a>
+        </li>
+      </ul>
+    </main>
+
+    <footer>
+      <p>Source: <a href="https://github.com/datawhalechina/happy-llm" target="_blank" rel="noopener">datawhalechina/happy-llm</a> (Apache-2.0)<br>
+      Designed with <a href="https://github.com/google-labs-code/design.md" target="_blank" rel="noopener">Google DESIGN.md</a> tokens.<br>
+      Code: <a href="https://github.com/anhgemus/happy-llm-lessons" target="_blank" rel="noopener">anhgemus/happy-llm-lessons</a></p>
+    </footer>
+  </div>
+</body>
+</html>
