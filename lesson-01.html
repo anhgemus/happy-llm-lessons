@@ -4,13 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Happy-LLM Lesson: The LLM Training Pipeline</title>
-  <meta name="description" content="Understanding the LLM training pipeline: Pretrain, SFT, PEFT, and Alignment.">
+  <meta name="description" content="Understanding the LLM training pipeline: Pretrain, SFT, PEFT, and Alignment with concrete examples.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
   <style>
     :root {
-      /* DESIGN.md tokens */
       --color-primary: #111827;
       --color-secondary: #4B5563;
       --color-tertiary: #2563EB;
@@ -38,10 +37,7 @@
       padding: var(--spacing-xl) var(--spacing-md);
     }
 
-    .container {
-      max-width: 720px;
-      margin: 0 auto;
-    }
+    .container { max-width: 720px; margin: 0 auto; }
 
     header {
       margin-bottom: var(--spacing-xl);
@@ -82,6 +78,13 @@
       line-height: 1.3;
       letter-spacing: -0.01em;
       margin-top: var(--spacing-xl);
+      margin-bottom: var(--spacing-md);
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-top: var(--spacing-lg);
       margin-bottom: var(--spacing-md);
     }
 
@@ -127,6 +130,21 @@
       margin-bottom: 4px;
     }
 
+    ol, ul {
+      padding-left: 24px;
+      margin-bottom: var(--spacing-md);
+    }
+
+    li { margin-bottom: 8px; }
+
+    .note {
+      background-color: #FEF3C7;
+      border-left: 4px solid #F59E0B;
+      padding: var(--spacing-md);
+      margin: var(--spacing-md) 0;
+      border-radius: var(--rounded-sm);
+    }
+
     footer {
       margin-top: var(--spacing-xl);
       padding-top: var(--spacing-lg);
@@ -143,50 +161,132 @@
   <div class="container">
     <header>
       <div>
-        <a href="#" class="tag">Happy-LLM</a>
+        <a href="index.html" class="tag">Happy-LLM</a>
         <a href="#" class="tag">Chapter 6</a>
         <a href="#" class="tag">Training Pipeline</a>
       </div>
       <h1>The LLM Training Pipeline</h1>
-      <div class="meta">Lesson #1 &middot; May 9, 2026 &middot; 2 min read</div>
+      <div class="meta">Lesson #1 &middot; May 9, 2026 &middot; 5 min read</div>
     </header>
 
     <main>
       <div class="card">
         <h2>The Lesson</h2>
-        <p>The industrial training pipeline using Hugging Face Transformers solves four distinct problems with four distinct data formats:</p>
-        <ol style="padding-left: 24px; margin-bottom: 16px;">
-          <li><strong>Pre-training</strong> — Raw text sequences, next-token prediction across the entire vocabulary. Teaches the model language and world knowledge.</li>
-          <li><strong>SFT (Supervised Fine-Tuning)</strong> — Instruction-response pairs. Critical difference: you only compute loss on response tokens, masking the instruction. This teaches the model to follow directions.</li>
-          <li><strong>PEFT/LoRA</strong> — Instead of updating all parameters, inject low-rank matrices: <code>W' = W + BA</code> where B and A are tiny matrices. Freeze W, train only B and A.</li>
-          <li><strong>Preference Alignment (RLHF/DPO/KTO)</strong> — The post-training phase where raw capability becomes usable behavior. DPO optimizes directly on preference pairs, skipping the separate reward model step.</li>
-        </ol>
-      </div>
+        <p>Training a production LLM isn't a single step — it's a pipeline with four distinct stages, each solving a different problem with a different data format and loss function.</p>
 
-      <div class="card">
-        <h2>Concrete Example</h2>
-        <p>Here's how SFT data formatting differs from pre-training:</p>
+        <h3>1. Pre-training: Learning Language and Knowledge</h3>
+        <p>Pre-training teaches the model basic language understanding and world knowledge. The model sees billions of tokens and learns to predict the next token in a sequence. The loss is computed on <strong>every token</strong>:</p>
         <div class="code-block">
-<code># Pre-training: raw text, loss on ALL tokens
-text = "The capital of France is Paris. Paris is known for"
-input_ids = [1048, 2341, 992, 3821, 1102, 441, 882, 331, ...]
-labels  = [1048, 2341, 992, 3821, 1102, 441, 882, 331, ...]  # same
+<code># Pre-training loss: predict next token for ALL positions
+import torch
+from transformers import AutoModelForCausalLM
 
-# SFT: instruction-response, loss ONLY on response
-input_ids = [INST: "What is 2+2?", RESP: "2+2 equals 4."]
-labels  = [-100, -100, -100, -100, RESP: "2+2 equals 4."]  # -100 = ignored</code>
+model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf")
+text = "The capital of France is Paris. Paris is known for"
+inputs = tokenizer(text, return_tensors="pt")
+
+# Loss computed on ALL tokens
+outputs = model(**inputs, labels=inputs.input_ids)
+print(f"Pre-training loss: {outputs.loss.item():.4f}")</code>
         </div>
-        <p>The <code>-100</code> label tells the loss function to skip those tokens. This is why SFT models learn to answer questions instead of just continuing text.</p>
+
+        <h3>2. Supervised Fine-Tuning (SFT): Teaching Instruction Following</h3>
+        <p>SFT transforms a language model into an assistant. The critical difference: you only compute loss on the <strong>response tokens</strong>, masking the instruction. This teaches the model to answer questions rather than just continue text.</p>
+        <div class="code-block">
+<code># SFT: mask instruction tokens with -100
+instruction = "What is 2+2?"
+response = "2+2 equals 4."
+
+# Tokenize instruction and response separately
+inst_ids = tokenizer(instruction, return_tensors="pt").input_ids
+resp_ids = tokenizer(response, return_tensors="pt").input_ids
+
+# Combine: [instruction tokens] + [response tokens]
+input_ids = torch.cat([inst_ids, resp_ids], dim=1)
+
+# Labels: -100 for instruction (ignored), actual IDs for response
+labels = torch.cat([
+    torch.full_like(inst_ids, -100),  # Mask instruction
+    resp_ids  # Compute loss on response only
+], dim=1)
+
+outputs = model(input_ids=input_ids, labels=labels)
+print(f"SFT loss: {outputs.loss.item():.4f}")</code>
+        </div>
+
+        <div class="note">
+          <strong>Key insight:</strong> The <code>-100</code> label tells PyTorch's cross-entropy loss to ignore those positions. This is why SFT models learn to follow instructions instead of just continuing the prompt.
+        </div>
+
+        <h3>3. Parameter-Efficient Fine-Tuning (LoRA)</h3>
+        <p>LoRA avoids updating all billions of parameters by injecting trainable low-rank matrices. For a weight matrix <code>W</code> of shape <code>(d_model, d_ff)</code>, LoRA adds:</p>
+        <div class="code-block">
+<code># LoRA: W' = W + B @ A
+# W is frozen, only A and B are trained
+
+import torch.nn as nn
+
+class LoRALayer(nn.Module):
+    def __init__(self, d_model, d_ff, rank=8, alpha=16):
+        super().__init__()
+        self.rank = rank
+        self.alpha = alpha
+        
+        # Low-rank decomposition
+        self.A = nn.Linear(d_model, rank, bias=False)  # (d_model, rank)
+        self.B = nn.Linear(rank, d_ff, bias=False)     # (rank, d_ff)
+        
+        # Scaling factor
+        self.scale = alpha / rank
+    
+    def forward(self, x):
+        # Original frozen weight
+        original = self.frozen_weight(x)
+        
+        # LoRA update: B(A(x)) * scale
+        lora_update = self.B(self.A(x)) * self.scale
+        
+        return original + lora_update</code>
+        </div>
+        <p>With rank=8, you're training <code>8 × d_model + 8 × d_ff</code> parameters instead of <code>d_model × d_ff</code>. For a 7B model, this reduces trainable parameters from 7 billion to ~0.01%.</p>
+
+        <h3>4. Preference Alignment (DPO)</h3>
+        <p>Direct Preference Optimization (DPO) aligns model outputs with human preferences without training a separate reward model. Given a chosen response <code>y_w</code> and a rejected response <code>y_l</code>:</p>
+        <div class="code-block">
+<code># DPO loss: optimize preference directly
+def dpo_loss(policy_logits_chosen, policy_logits_rejected, beta=0.1):
+    """
+    DPO loss function
+    beta: controls how strongly we enforce preferences
+    """
+    # Log probability of chosen vs rejected
+    log_policy_chosen = torch.log_softmax(policy_logits_chosen, dim=-1)
+    log_policy_rejected = torch.log_softmax(policy_logits_rejected, dim=-1)
+    
+    # Preference margin
+    log_ratio = log_policy_chosen - log_policy_rejected
+    
+    # DPO loss: minimize -log(σ(β * log_ratio))
+    loss = -torch.log(torch.sigmoid(beta * log_ratio))
+    
+    return loss.mean()</code>
+        </div>
       </div>
 
       <div class="takeaway">
         <div class="takeaway-label">Key Takeaway</div>
-        The training pipeline is a funnel — each stage narrows the model's behavior from general language understanding to specific, controllable outputs.
+        The LLM training pipeline is a funnel: pre-training gives breadth (knowledge), SFT gives instruction-following, LoRA makes it affordable, and alignment makes it safe and helpful. Each stage uses a different loss function and data format.
       </div>
 
       <div class="card">
         <h2>Why It Matters</h2>
-        <p>As an AI leader, understanding this pipeline helps you make architectural decisions: when to fine-tune vs. prompt, when LoRA is sufficient vs. full fine-tuning, and whether your use case needs alignment or just SFT.</p>
+        <p>Understanding this pipeline helps you make architectural decisions:</p>
+        <ul>
+          <li><strong>Prompt vs Fine-tune:</strong> Prompting can only reach what pre-training encoded. Fine-tuning injects new behavior patterns.</li>
+          <li><strong>LoRA vs Full FT:</strong> LoRA is sufficient for most domain adaptation. Full fine-tuning is only needed for fundamental capability changes.</li>
+          <li><strong>Alignment needs:</strong> Most applications only need SFT. Alignment (RLHF/DPO) is only necessary when you need specific behavioral constraints.</li>
+        </ul>
+        <p>As an AI leader, this knowledge helps you estimate costs, choose the right training approach, and debug when models don't behave as expected.</p>
       </div>
     </main>
 
