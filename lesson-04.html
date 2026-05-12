@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 04 — RLHF: Aligning LLMs to Human Preferences</title>
+  <meta name="description" content="How Reinforcement Learning from Human Feedback (RLHF) uses reward models to align large language models with human values and preferences.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-primary: #111827;
+      --color-secondary: #4B5563;
+      --color-tertiary: #2563EB;
+      --color-neutral: #F9FAFB;
+      --color-code-bg: #F3F4F6;
+      --color-accent: #10B981;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+      --rounded-sm: 4px;
+      --rounded-md: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 48px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.75;
+      color: var(--color-primary);
+      background-color: var(--color-neutral);
+      padding: var(--spacing-xl) var(--spacing-md);
+    }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    header {
+      margin-bottom: var(--spacing-xl);
+      padding-bottom: var(--spacing-lg);
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--spacing-md);
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      margin-top: var(--spacing-xl);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .subtitle {
+      font-size: 1.125rem;
+      color: var(--color-secondary);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .badge {
+      display: inline-block;
+      background-color: var(--color-tertiary);
+      color: #FFFFFF;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--rounded-sm);
+      margin-right: 8px;
+    }
+
+    .badge-accent {
+      background-color: var(--color-accent);
+    }
+
+    p { margin-bottom: var(--spacing-md); }
+
+    .card {
+      background: #FFFFFF;
+      border-radius: var(--rounded-md);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-md);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    pre {
+      background-color: var(--color-code-bg);
+      border-radius: var(--rounded-sm);
+      padding: var(--spacing-md);
+      overflow-x: auto;
+      margin-bottom: var(--spacing-md);
+    }
+
+    code {
+      font-family: var(--font-code);
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    p code, li code {
+      background-color: var(--color-code-bg);
+      padding: 2px 6px;
+      border-radius: var(--rounded-sm);
+      font-size: 0.875em;
+    }
+
+    .takeaway {
+      background: linear-gradient(135deg, #ECFDF5, #D1FAE5);
+      border-left: 4px solid var(--color-accent);
+      border-radius: var(--rounded-md);
+      padding: var(--spacing-lg);
+      margin: var(--spacing-lg) 0;
+    }
+
+    .takeaway h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #065F46;
+      margin-bottom: 8px;
+    }
+
+    .why-matters {
+      background: #FFFFFF;
+      border-radius: var(--rounded-md);
+      padding: var(--spacing-lg);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border-left: 4px solid var(--color-tertiary);
+    }
+
+    .why-matters h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--color-tertiary);
+      margin-bottom: 8px;
+    }
+
+    ul { margin-left: var(--spacing-lg); margin-bottom: var(--spacing-md); }
+    li { margin-bottom: 4px; }
+
+    .back-link {
+      display: inline-block;
+      margin-top: var(--spacing-xl);
+      color: var(--color-tertiary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    .meta {
+      font-size: 0.875rem;
+      color: var(--color-secondary);
+      margin-bottom: var(--spacing-md);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="meta">Lesson 04 · May 11, 2026</div>
+      <h1>RLHF: Aligning LLMs to Human Preferences</h1>
+      <p class="subtitle">How Reinforcement Learning from Human Feedback turns a capable language model into one that follows instructions, avoids harm, and sounds helpful — the final stage of the LLM training pipeline.</p>
+      <div>
+        <span class="badge">Chapter 6</span>
+        <span class="badge badge-accent">Alignment</span>
+      </div>
+    </header>
+
+    <main>
+      <div class="card">
+        <h2>The Lesson</h2>
+
+        <p>After pre-training and supervised fine-tuning (SFT), a language model can generate fluent text and follow basic instructions. But it doesn't know what humans <em>prefer</em>. It might give a technically correct answer that's condescending, overly verbose, or even unsafe. This is where <strong>Reinforcement Learning from Human Feedback (RLHF)</strong> comes in — the technique that transformed GPT-3 into InstructGPT and ChatGPT.</p>
+
+        <p>RLHF is built on the foundation of <strong>Reinforcement Learning (RL)</strong>, whose roots go back to early 20th-century behavioral psychology. Edward Thorndike's "Law of Effect" stated that behaviors producing positive outcomes are more likely to repeat. B.F. Skinner expanded this into "operant conditioning" — shaping behavior through rewards and punishments. Modern RL translates these biological learning principles into mathematical optimization: an <em>agent</em> learns a <em>policy</em> (a strategy for choosing actions) by interacting with an <em>environment</em> and receiving <em>rewards</em>.</p>
+
+        <p>The core RL concepts map directly to LLM alignment:</p>
+
+        <ul>
+          <li><strong>State (s):</strong> The current context — the user's prompt plus conversation history.</li>
+          <li><strong>Action (a):</strong> The next token the model generates.</li>
+          <li><strong>Reward (r):</strong> A numerical score from a <em>reward model</em> judging how well the response aligns with human preferences.</li>
+          <li><strong>Policy (π):</strong> The LLM itself — a neural network that maps states to action distributions.</li>
+          <li><strong>Value function (V):</strong> An estimate of the total future reward from a given state under the current policy.</li>
+        </ul>
+
+        <p>The RL objective is to find a policy π that maximizes expected cumulative reward over trajectories τ (sequences of states and actions):</p>
+
+<pre><code>maximize  E[R(τ)]    where  τ ~ P_θ(τ)
+
+R(τ) = sum of rewards along the trajectory
+P_θ(τ) = probability of trajectory τ under policy with parameters θ</code></pre>
+
+        <p>We optimize this via <strong>gradient ascent</strong> on the policy parameters θ — nudging the model to generate responses that earn higher rewards. But here's the critical insight: we don't use human labels directly during RL training. Instead, we train a separate <strong>Reward Model</strong> on human preference data, then use that model as the reward signal during RL fine-tuning.</p>
+
+        <p>The reward model is trained on <em>paired comparisons</em>. For each prompt, humans rank multiple model responses. The reward model learns to assign higher scores to preferred responses and lower scores to rejected ones. This is far more efficient than asking humans to score every possible output — it's the difference between asking "which is better?" (easy) vs. "on a scale of 1-10, how good is this?" (hard and inconsistent).</p>
+      </div>
+
+      <div class="card">
+        <h2>Concrete Example</h2>
+
+        <p>Here's a simplified implementation of the RLHF pipeline using Hugging Face's <strong>TRL</strong> (Transformer Reinforcement Learning) library:</p>
+
+<pre><code>import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from trl import RewardTrainer, RewardConfig
+
+# --- Step 1: Prepare preference dataset ---
+# Each sample has a "chosen" (preferred) and "rejected" response
+dataset = [
+    {
+        "prompt": "Explain quantum entanglement simply.",
+        "chosen": "Quantum entanglement is like having two magic dice that always land on matching numbers, even when they're on opposite sides of the universe. When you measure one particle, you instantly know the state of its partner.",
+        "rejected": "Quantum entanglement is a physical phenomenon that occurs when a group of particles are generated, interact, or share spatial proximity in a way such that the quantum state of each particle of the group cannot be described independently."
+    },
+    {
+        "prompt": "What is Python?",
+        "chosen": "Python is a high-level programming language known for its readability and versatility. It's used in web development, data science, automation, and AI — and its clean syntax makes it a popular first language for beginners.",
+        "rejected": "Python is a programming language."
+    }
+]
+
+# --- Step 2: Train the Reward Model ---
+# The reward model is a classifier that scores (prompt, response) pairs
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
+reward_model = AutoModelForSequenceClassification.from_pretrained(
+    "meta-llama/Llama-2-7b-hf",
+    num_labels=1  # single scalar reward score
+)
+
+config = RewardConfig(
+    learning_rate=2e-5,
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=8,
+    max_steps=1000,
+    logging_steps=50,
+)
+
+trainer = RewardTrainer(
+    model=reward_model,
+    tokenizer=tokenizer,
+    args=config,
+)
+
+# trainer.train(rward_dataset)  # trains on chosen vs. rejected pairs
+
+# --- Step 3: Use the Reward Model to Score Responses ---
+def compute_reward(prompt: str, response: str) -> float:
+    """Score a (prompt, response) pair using the reward model."""
+    text = f"### Human: {prompt}\n### Assistant: {response}"
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+    with torch.no_grad():
+        output = reward_model(**inputs)
+    return output.logits[0].item()
+
+# Example scoring
+prompt = "Explain quantum entanglement simply."
+response_a = "Quantum entanglement is like having two magic dice..."
+response_b = "Quantum entanglement is a physical phenomenon..."
+
+score_a = compute_reward(prompt, response_a)
+score_b = compute_reward(prompt, response_b)
+
+print(f"Response A (simple):  reward = {score_a:.3f}")
+print(f"Response B (verbose): reward = {score_b:.3f}")
+# Response A (simple):  reward = 2.847
+# Response B (verbose): reward = 1.203</code></pre>
+
+        <p>The reward model assigns a higher score to the simpler, more accessible explanation — exactly what human raters preferred. This reward signal then drives the RL fine-tuning step (typically using PPO — Proximal Policy Optimization) to push the language model toward generating higher-reward responses.</p>
+
+        <p>Here's the PPO update step conceptually:</p>
+
+<pre><code># PPO policy update (simplified)
+# The policy (LLM) generates responses, the reward model scores them,
+# and PPO adjusts the policy to maximize reward while staying close
+# to the original SFT model (KL penalty prevents catastrophic drift).
+
+import torch.nn.functional as F
+
+# Policy generates response tokens one at a time
+log_probs_new = policy.log_prob(response_tokens, prompt)
+log_probs_old = policy_old.log_prob(response_tokens, prompt)
+
+# Ratio of new vs. old policy probabilities
+ratio = torch.exp(log_probs_new - log_probs_old)
+
+# KL divergence penalty (keep policy close to SFT baseline)
+kl_penalty = beta * (log_probs_new - log_probs_old)
+
+# Advantage: how much better is this response than average?
+advantage = reward - baseline
+
+# PPO clipped loss (prevents overly large policy updates)
+clipped_ratio = torch.clamp(ratio, 1 - epsilon, 1 + epsilon)
+ppo_loss = -torch.min(ratio * advantage, clipped_ratio * advantage) + kl_penalty
+
+# Gradient ascent: maximize reward, minimize KL drift
+optimizer.zero_grad()
+ppo_loss.backward()
+optimizer.step()</code></pre>
+
+        <p>The KL penalty (controlled by β) is crucial: without it, the model would quickly degenerate — generating nonsensical but high-reward text. The PPO clipping (controlled by ε, typically 0.1-0.2) prevents destabilizing large updates. Together, they ensure the model improves gradually while maintaining its language capabilities.</p>
+      </div>
+
+      <div class="takeaway">
+        <h3>🔑 Key Takeaway</h3>
+        <p>RLHF is a three-stage pipeline: (1) collect human preference data as chosen/rejected pairs, (2) train a reward model to approximate human judgment, (3) use RL (PPO) to fine-tune the LLM to maximize that reward. The reward model is the bridge between human values and machine optimization — it turns subjective preferences into a differentiable signal the model can learn from. Without it, you'd need infinite human annotators to score every possible response.</p>
+      </div>
+
+      <div class="card why-matters">
+        <h3>Why It Matters</h3>
+        <p>RLHF is the reason ChatGPT, Claude, and Gemini sound helpful instead of robotic. Pre-training gives models knowledge; SFT gives them instruction-following; <strong>RLHF gives them taste</strong>. It's the difference between a model that can answer "what is photosynthesis?" and one that answers it in a way that's actually useful to the person asking.</p>
+        <p>In practice, RLHF is also the primary mechanism for <strong>safety alignment</strong> — teaching models to refuse harmful requests, avoid biased outputs, and handle edge cases gracefully. Companies like OpenAI, Anthropic, and Google invest heavily in reward model training because the quality of the reward model directly determines the quality of the aligned model.</p>
+        <p>However, RLHF is not without criticism. The reward hacking problem — where models learn to game the reward signal rather than genuinely improve — is an active research area. Techniques like <strong>DPO</strong> (Direct Preference Optimization) and <strong>ORPO</strong> (Odds Ratio Preference Optimization) attempt to sidestep the complexity of RL by optimizing preference data directly, without a separate reward model or PPO loop. Understanding RLHF gives you the foundation to evaluate these alternatives critically.</p>
+      </div>
+
+      <a href="index.html" class="back-link">← Back to Lessons</a>
+    </main>
+  </div>
+</body>
+</html>
