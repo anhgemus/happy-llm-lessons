@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 06 — The Evolution of Text Representations</title>
+  <meta name="description" content="How we went from sparse one-hot vectors to dense contextual embeddings — the representational journey that made modern LLMs possible.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-primary: #111827;
+      --color-secondary: #4B5563;
+      --color-tertiary: #2563EB;
+      --color-neutral: #F9FAFB;
+      --color-code-bg: #F3F4F6;
+      --color-accent: #10B981;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+      --rounded-sm: 4px;
+      --rounded-md: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 48px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.75;
+      color: var(--color-primary);
+      background-color: var(--color-neutral);
+      padding: var(--spacing-xl) var(--spacing-md);
+    }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    header {
+      margin-bottom: var(--spacing-xl);
+      padding-bottom: var(--spacing-lg);
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--spacing-md);
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      margin-top: var(--spacing-xl);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .subtitle {
+      font-size: 1.125rem;
+      color: var(--color-secondary);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .badge {
+      display: inline-block;
+      background-color: var(--color-tertiary);
+      color: #FFFFFF;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--rounded-sm);
+      margin-right: 8px;
+    }
+
+    .badge-accent {
+      background-color: var(--color-accent);
+    }
+
+    p { margin-bottom: var(--spacing-md); }
+
+    .card {
+      background: #FFFFFF;
+      border-radius: var(--rounded-md);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-md);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    pre {
+      background-color: var(--color-code-bg);
+      border-radius: var(--rounded-sm);
+      padding: var(--spacing-md);
+      overflow-x: auto;
+      margin-bottom: var(--spacing-md);
+    }
+
+    code {
+      font-family: var(--font-code);
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    p code, li code {
+      background-color: var(--color-code-bg);
+      padding: 2px 6px;
+      border-radius: var(--rounded-sm);
+      font-size: 0.875em;
+    }
+
+    .takeaway {
+      background: linear-gradient(135deg, #ECFDF5, #D1FAE5);
+      border-left: 4px solid var(--color-accent);
+      border-radius: var(--rounded-md);
+      padding: var(--spacing-lg);
+      margin: var(--spacing-lg) 0;
+    }
+
+    .takeaway h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #065F46;
+      margin-bottom: 8px;
+    }
+
+    .why-matters {
+      background: #FFFFFF;
+      border-radius: var(--rounded-md);
+      padding: var(--spacing-lg);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border-left: 4px solid var(--color-tertiary);
+    }
+
+    .why-matters h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--color-tertiary);
+      margin-bottom: 8px;
+    }
+
+    ul { margin-left: var(--spacing-lg); margin-bottom: var(--spacing-md); }
+    li { margin-bottom: 4px; }
+
+    .back-link {
+      display: inline-block;
+      margin-top: var(--spacing-xl);
+      color: var(--color-tertiary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    .meta {
+      font-size: 0.875rem;
+      color: var(--color-secondary);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .timeline {
+      position: relative;
+      padding-left: 24px;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #E5E7EB;
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -20px;
+      top: 6px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--color-tertiary);
+    }
+
+    .timeline-item .year {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--color-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .timeline-item .name {
+      font-weight: 600;
+      margin: 2px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="meta">Lesson 06 · May 12, 2026</div>
+      <h1>The Evolution of Text Representations</h1>
+      <p class="subtitle">From sparse one-hot vectors to dense contextual embeddings — the representational journey that made every modern LLM possible.</p>
+      <div>
+        <span class="badge">Chapter 1</span>
+        <span class="badge badge-accent">Foundations</span>
+        <span class="badge">Embeddings</span>
+      </div>
+    </header>
+
+    <main>
+      <div class="card">
+        <h2>The Lesson</h2>
+
+        <p>Before any LLM can understand language, it needs a way to represent text as numbers. This seems simple — just assign each word an ID, right? — but the <em>quality</em> of that representation is what separates a model that recognizes patterns from one that understands meaning. The evolution of text representations is arguably the most important thread in NLP history, because every breakthrough in model capability traces back to a better way of encoding words.</p>
+
+        <p>The journey has three major leaps:</p>
+
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="year">1970s–2010s</div>
+            <div class="name">One-Hot Encoding (Bag of Words)</div>
+            <p>Each word is a vector of length <code>V</code> (vocabulary size), with a single <code>1</code> at the word's position and <code>0</code> everywhere else. For a vocabulary of 50,000 words, "cat" is a 50,000-dimensional vector with one non-zero entry. The problem? <strong>Every word is equidistant from every other word.</strong> The dot product of "king" and "queen" is exactly the same as "king" and "pizza" — both are zero. No semantic relationship can be captured.</p>
+          </div>
+          <div class="timeline-item">
+            <div class="year">2013</div>
+            <div class="name">Word2Vec — Dense Static Embeddings</div>
+            <p>Word2Vec learns dense, low-dimensional vectors (typically 100–300 dimensions) by predicting words from their context. The magic: words with similar meanings end up close together in vector space. "king" − "man" + "woman" ≈ "queen." But the embedding is <strong>static</strong> — the word "bank" has the same vector whether it means a river bank or a financial institution. One word, one vector, no matter the context.</p>
+          </div>
+          <div class="timeline-item">
+            <div class="year">2018</div>
+            <div class="name">ELMo → BERT — Contextual Embeddings</div>
+            <p>ELMo was the first to produce <strong>context-dependent</strong> word representations. The word "bank" gets different vectors in "river bank" vs. "savings bank." BERT took this further with bidirectional Transformers, producing representations that capture not just local context but the full sentence. This is the foundation every modern LLM builds upon.</p>
+          </div>
+        </div>
+
+        <p>Each leap solved a fundamental limitation of the previous approach. One-hot encoding couldn't capture similarity. Word2Vec captured similarity but not context. ELMo and BERT captured context but were computationally expensive. Modern LLMs inherit all of these ideas: dense embeddings, contextual representations, and the principle that meaning emerges from the relationship between words, not from words in isolation.</p>
+      </div>
+
+      <div class="card">
+        <h2>Concrete Example</h2>
+
+        <p>Let's see the difference between one-hot encoding and Word2Vec embeddings in practice:</p>
+
+<pre><code>import numpy as np
+from gensim.models import Word2Vec
+
+# --- One-hot encoding ---
+# Vocabulary: ["king", "queen", "cat", "dog", "pizza"]
+vocab = {"king": 0, "queen": 1, "cat": 2, "dog": 3, "pizza": 4}
+vocab_size = len(vocab)
+
+def one_hot(word):
+    vec = np.zeros(vocab_size)
+    vec[vocab[word]] = 1
+    return vec
+
+king_vec = one_hot("king")
+queen_vec = one_hot("queen")
+pizza_vec = one_hot("pizza")
+
+# Cosine similarity between any pair of one-hot vectors is always 0
+from numpy.linalg import norm
+cos_sim = lambda a, b: np.dot(a, b) / (norm(a) * norm(b))
+
+print("=== One-Hot Similarities ===")
+print(f"king vs queen:  {cos_sim(king_vec, queen_vec):.4f}")
+print(f"king vs pizza:  {cos_sim(king_vec, pizza_vec):.4f}")
+print("→ Both are 0.0000. No semantic information at all.\n")
+
+# --- Word2Vec embeddings ---
+# Train on a small corpus
+sentences = [
+    ["the", "king", "is", "powerful", "and", "rules", "the", "kingdom"],
+    ["the", "queen", "is", "powerful", "and", "rules", "the", "kingdom"],
+    ["the", "cat", "is", "small", "and", "lives", "in", "the", "house"],
+    ["the", "dog", "is", "loyal", "and", "lives", "in", "the", "house"],
+    ["the", "king", "and", "the", "queen", "rule", "together"],
+    ["the", "cat", "and", "the", "dog", "play", "together"],
+]
+
+model = Word2Vec(sentences, vector_size=50, window=3, min_count=1, epochs=100)
+
+king_emb = model.wv["king"]
+queen_emb = model.wv["queen"]
+cat_emb = model.wv["cat"]
+dog_emb = model.wv["dog"]
+
+print("=== Word2Vec Similarities ===")
+print(f"king vs queen:  {cos_sim(king_emb, queen_emb):.4f}")
+print(f"king vs cat:    {cos_sim(king_emb, cat_emb):.4f}")
+print(f"cat vs dog:     {cos_sim(cat_emb, dog_emb):.4f}")
+print("→ king/queen and cat/dog pairs are more similar to each other\n")
+
+# --- The famous analogy: king - man + woman ≈ queen ---
+print("=== Vector Arithmetic ===")
+print(f"king vector shape: {king_emb.shape}")
+print(f"king embedding (first 5 dims): {king_emb[:5].round(4)}")
+print(f"queen embedding (first 5 dims): {queen_emb[:5].round(4)}")</code></pre>
+
+        <p>Now let's see how contextual embeddings solve the polysemy problem that Word2Vec can't handle:</p>
+
+<pre><code>from transformers import AutoTokenizer, AutoModel
+import torch
+
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+model = AutoModel.from_pretrained("bert-base-uncased")
+model.eval()
+
+# The word "bank" in two different contexts
+sentence_a = "I deposited money at the bank"
+sentence_b = "I sat on the bank of the river"
+
+def get_word_embedding(sentence, target_word):
+    inputs = tokenizer(sentence, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**inputs)
+    # Get token embeddings (last hidden state)
+    embeddings = outputs.last_hidden_state[0]  # (seq_len, 768)
+    tokens = tokenizer.convert_ids_to_tokens(inputs.input_ids[0])
+
+    # Find the target word token
+    for i, token in enumerate(tokens):
+        if token.replace("##", "") == target_word:
+            return embeddings[i].numpy(), token
+
+emb_a, tok_a = get_word_embedding(sentence_a, "bank")
+emb_b, tok_b = get_word_embedding(sentence_b, "bank")
+
+sim = cos_sim(emb_a, emb_b)
+print(f"Token A: '{tok_a}' in '{sentence_a}'")
+print(f"Token B: '{tok_b}' in '{sentence_b}'")
+print(f"Cosine similarity of contextual embeddings: {sim:.4f}")
+print(f"→ Lower similarity = BERT captures the different meanings!")
+
+# Compare with static Word2Vec (same vector regardless of context)
+print(f"\nWith static Word2Vec: bank always has the SAME vector.")
+print(f"Cosine similarity would be: 1.0000 (identical)")</code></pre>
+
+        <p>The output typically shows a similarity of around <strong>0.4–0.6</strong> for the two "bank" embeddings, compared to <strong>1.0</strong> for static embeddings. This is the fundamental insight: <em>the same word should have different representations in different contexts</em>, and only contextual models can achieve this.</p>
+      </div>
+
+      <div class="takeaway">
+        <h3>🔑 Key Takeaway</h3>
+        <p>The evolution from one-hot → dense static → contextual embeddings is the single most important progression in NLP. Each step solved a fundamental representational limitation: one-hot vectors can't encode similarity, static embeddings can't encode context, and contextual embeddings (the current state of the art) encode both. Every modern LLM — from BERT to GPT to LLaMA — uses dense, contextual embeddings as its foundational representation layer. Understanding this progression helps you understand <em>why</em> LLMs work, not just <em>how</em> to use them.</p>
+      </div>
+
+      <div class="card why-matters">
+        <h3>Why It Matters</h3>
+        <p>When you're working with LLMs in production, representation quality is often the bottleneck you can't see. If your fine-tuning data uses poor tokenization or your domain has vocabulary not well-represented in the pre-trained embedding space, the model will struggle — no matter how much compute you throw at it. Understanding the embedding layer helps you diagnose these failures.</p>
+        <p>It also informs your architectural choices. For tasks where context matters less (keyword matching, simple classification on short texts), static embeddings like Word2Vec or FastText can be surprisingly effective and orders of magnitude cheaper. For tasks requiring deep semantic understanding (summarization, reasoning, translation), you need contextual embeddings. Knowing where each approach fits is a practical skill that separates LLM engineers from LLM API callers.</p>
+        <p>Finally, the representational journey continues. Modern research explores <strong>multimodal embeddings</strong> (text + image + audio in one space), <strong>instruction-tuned embeddings</strong>, and <strong>adapters</strong> that modify representations for specific domains without retraining the full model. The core principle remains the same: better representations = better understanding.</p>
+      </div>
+
+      <a href="index.html" class="back-link">← Back to Lessons</a>
+    </main>
+  </div>
+</body>
+</html>
