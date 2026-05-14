@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Happy-LLM Lesson 09: Supervised Fine-Tuning and Instruction Tuning</title>
+  <meta name="description" content="How instruction tuning transforms a pre-trained LLM into a useful assistant: SFT data formats, multi-turn dialogue, and loss masking.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-primary: #111827;
+      --color-secondary: #4B5563;
+      --color-tertiary: #2563EB;
+      --color-neutral: #F9FAFB;
+      --color-code-bg: #F3F4F6;
+      --color-accent: #10B981;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+      --rounded-sm: 4px;
+      --rounded-md: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 48px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.75;
+      color: var(--color-primary);
+      background-color: var(--color-neutral);
+      padding: var(--spacing-xl) var(--spacing-md);
+    }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    header {
+      margin-bottom: var(--spacing-xl);
+      padding-bottom: var(--spacing-lg);
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .meta {
+      font-size: 0.875rem;
+      color: var(--color-secondary);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .tag {
+      display: inline-block;
+      background-color: var(--color-tertiary);
+      color: #FFFFFF;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--rounded-sm);
+      margin-right: 8px;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      margin-top: var(--spacing-xl);
+      margin-bottom: var(--spacing-md);
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-top: var(--spacing-lg);
+      margin-bottom: var(--spacing-md);
+    }
+
+    p {
+      margin-bottom: var(--spacing-md);
+    }
+
+    .card {
+      background-color: #FFFFFF;
+      border-radius: var(--rounded-md);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    pre {
+      background-color: var(--color-code-bg);
+      border-radius: var(--rounded-sm);
+      padding: var(--spacing-md);
+      overflow-x: auto;
+      margin-bottom: var(--spacing-md);
+    }
+
+    code {
+      font-family: var(--font-code);
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    p code, li code {
+      background-color: var(--color-code-bg);
+      padding: 2px 6px;
+      border-radius: var(--rounded-sm);
+      font-size: 0.875rem;
+    }
+
+    .takeaway {
+      background-color: #ECFDF5;
+      border-left: 4px solid var(--color-accent);
+      border-radius: var(--rounded-sm);
+      padding: var(--spacing-md) var(--spacing-lg);
+      margin: var(--spacing-lg) 0;
+    }
+
+    .takeaway strong {
+      color: var(--color-accent);
+    }
+
+    ul, ol {
+      margin-bottom: var(--spacing-md);
+      padding-left: var(--spacing-lg);
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: var(--spacing-md);
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    th {
+      font-weight: 600;
+      background-color: var(--color-code-bg);
+    }
+
+    a {
+      color: var(--color-tertiary);
+      text-decoration: none;
+    }
+
+    a:hover { text-decoration: underline; }
+
+    .back-link {
+      display: inline-block;
+      margin-top: var(--spacing-xl);
+      padding-top: var(--spacing-lg);
+      border-top: 1px solid #E5E7EB;
+      color: var(--color-tertiary);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="meta">
+        <span class="tag">Lesson 09</span>
+        <span class="tag">Chapter 4</span>
+      </div>
+      <h1>Supervised Fine-Tuning and Instruction Tuning</h1>
+      <p class="meta">Source: Happy-LLM Chapter 4 &mdash; Large Language Models &bull; May 14, 2026</p>
+    </header>
+
+    <div class="card">
+      <h2>The Lesson</h2>
+
+      <p>
+        A pre-trained LLM is like a person who has read every book in the library but doesn't know how to have a conversation. It can continue any text fluently, but it doesn't understand that you want it to <em>answer questions</em>, <em>write code</em>, or <em>summarize articles</em>. Pretraining teaches the model <strong>what to say</strong>; Supervised Fine-Tuning (SFT) teaches it <strong>how to be useful</strong>.
+      </p>
+
+      <p>
+        SFT is the second stage of LLM training, sitting between pretraining and alignment (RLHF/DPO). During pretraining, the model learns by predicting the next token across hundreds of billions of tokens of raw text. It absorbs vast knowledge — facts, patterns, language structures — but operates in a single mode: text continuation. If you give it "The capital of France is", it completes with "Paris". If you give it "Write a poem about", it writes a poem. But it doesn't <em>choose</em> to do either based on your intent — it just continues whatever pattern it sees.
+      </p>
+
+      <p>
+        Instruction tuning solves this by training the model on pairs of <strong>instructions</strong> and <strong>desired responses</strong>. Instead of training on raw text, we format data as: "Here is what the user wants" → "Here is how the model should respond." The key insight is <strong>diversity</strong>: we don't fine-tune on one task (like classification or translation). We mix hundreds of task types — text generation, open-domain QA, brainstorming, chat, summarization, classification — so the model learns the <em>general concept</em> of following instructions, not just specific task patterns.
+      </p>
+
+      <p>
+        The data format is simple but deliberate. Each training sample contains three fields:
+      </p>
+
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Purpose</th><th>Example</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>instruction</code></td><td>The user's command or question</td><td>"Translate this to English:"</td></tr>
+          <tr><td><code>input</code></td><td>Optional supplementary input</td><td>"今天天气真好"</td></tr>
+          <tr><td><code>output</code></td><td>The desired model response</td><td>"Today is a nice day."</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        During training, the instruction and input are concatenated as the model's input, and the full sequence (instruction + input + output) is the target. Crucially, the model still performs next-token prediction — the same objective as pretraining. The difference is that we <strong>mask the loss</strong> on the instruction portion: the model sees the instruction tokens but is only penalized for incorrectly predicting the <em>output</em> tokens. This teaches the model to map instructions to responses without being forced to "predict" the user's question.
+      </p>
+
+      <p>
+        For multi-turn conversations, we format the dialogue as a sequence of alternating prompts and completions: <code>&lt;prompt_1&gt;&lt;completion_1&gt;&lt;prompt_2&gt;&lt;completion_2&gt;...</code>. The optimal training strategy predicts <em>every</em> completion in the sequence, using causal masking to ensure earlier turns don't leak information into later ones. This is possible because the Transformer's causal attention only looks leftward — predicting completion_1 cannot depend on completion_2.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Concrete Example</h2>
+
+      <h3>1. Building Instruction-Tuning Data</h3>
+      <p>
+        This example shows how to construct instruction-tuning samples and format them for training. We use the standard three-field format and demonstrate loss masking during training.
+      </p>
+
+<pre><code>import json
+from typing import List, Dict
+
+def build_instruction_sample(
+    instruction: str,
+    input_text: str = "",
+    output: str = ""
+) -> Dict[str, str]:
+    """Create a single instruction-tuning sample."""
+    return {
+        "instruction": instruction,
+        "input": input_text,
+        "output": output,
+    }
+
+# Build a small instruction dataset
+samples = [
+    build_instruction_sample(
+        instruction="Translate the following text to English:",
+        input_text="今天天气真好",
+        output="Today is a nice day.",
+    ),
+    build_instruction_sample(
+        instruction="Summarize the following paragraph in one sentence:",
+        input_text="The Internet of Things (IoT) refers to the network of physical "
+                   "objects embedded with sensors, software, and connectivity. "
+                   "These objects collect and exchange data, enabling automation "
+                   "and remote monitoring across industries.",
+        output="IoT connects physical objects with sensors and software to "
+               "collect data and enable automation.",
+    ),
+    build_instruction_sample(
+        instruction="What is the capital of Japan?",
+        output="The capital of Japan is Tokyo.",
+    ),
+]
+
+# Save to JSONL format (standard for instruction datasets)
+with open("instruction_data.jsonl", "w") as f:
+    for sample in samples:
+        f.write(json.dumps(sample) + "\n")
+
+print(f"Created {len(samples)} instruction samples.")</code></pre>
+
+      <h3>2. Formatting for Training with Loss Masking</h3>
+      <p>
+        This is the critical technique: the model sees the full instruction + response, but the loss is only computed on the response tokens. Here's how to implement it with the Hugging Face Transformers library.
+      </p>
+
+<pre><code>from transformers import AutoTokenizer
+import torch
+
+def format_and_tokenize(
+    sample: Dict[str, str],
+    tokenizer,
+    max_length: int = 512
+) -> Dict[str, torch.Tensor]:
+    """
+    Format an instruction sample and tokenize it with loss masking.
+
+    The instruction part is masked (loss_ignore_index) so the model
+    only learns to predict the output, not the instruction.
+    """
+    # Build the full prompt (instruction + optional input)
+    prompt = f"### Instruction:\n{sample['instruction']}"
+    if sample.get("input"):
+        prompt += f"\n{sample['input']}"
+    prompt += "\n\n### Response:\n"
+
+    # The full text includes prompt + output
+    full_text = prompt + sample["output"]
+
+    # Tokenize the full text
+    full_tokens = tokenizer(
+        full_text,
+        truncation=True,
+        max_length=max_length,
+        padding=False,
+        return_tensors="pt",
+    )
+
+    # Tokenize just the prompt to find its length
+    prompt_tokens = tokenizer(
+        prompt,
+        truncation=True,
+        max_length=max_length,
+        padding=False,
+        return_tensors="pt",
+    )
+
+    # Mask the prompt portion in labels
+    # -100 tells the loss function to ignore these tokens
+    labels = full_tokens["input_ids"].clone()
+    prompt_len = prompt_tokens["input_ids"].shape[1]
+    labels[:, :prompt_len] = -100
+
+    return {
+        "input_ids": full_tokens["input_ids"].squeeze(0),
+        "attention_mask": full_tokens["attention_mask"].squeeze(0),
+        "labels": labels.squeeze(0),
+    }
+
+# Example usage
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B")
+tokenizer.pad_token = tokenizer.eos_token
+
+sample = samples[0]  # The translation example
+result = format_and_tokenize(sample, tokenizer)
+
+print(f"Input IDs length:    {len(result['input_ids'])}")
+print(f"Label IDs length:    {len(result['labels'])}")
+print(f"Masked tokens:       {(result['labels'] == -100).sum().item()}")
+print(f"Trained tokens:      {(result['labels'] != -100).sum().item()}")
+print(f"\nPrompt (masked):     {tokenizer.decode(result['input_ids'][:result['labels'].eq(-100).sum()])}")
+print(f"Output (trained):    {tokenizer.decode(result['labels'][result['labels'] != -100])}")</code></pre>
+
+      <p>
+        <strong>What happens here:</strong> The model receives the full sequence as input. During the forward pass, it predicts every token. The cross-entropy loss only counts tokens where <code>labels != -100</code> — that is, only the output/response portion. The instruction tokens are "seen" by the model (they provide context) but don't contribute to the gradient. This is why instruction tuning still uses the same next-token-prediction objective as pretraining, but with a different loss mask.
+      </p>
+
+      <h3>3. Multi-Turn Dialogue Construction</h3>
+      <p>
+        For conversational models, we need to format multi-turn exchanges. The correct approach trains on <em>all</em> completions in the conversation, not just the last one.
+      </p>
+
+<pre><code>def build_multiturn_sample(turns: List[Dict[str, str]]) -> Dict[str, str]:
+    """
+    Build a multi-turn dialogue sample.
+
+    Args:
+        turns: List of {"role": "user"/"assistant", "content": "..."}
+
+    Returns:
+        A single sample with concatenated input and output.
+    """
+    input_parts = []
+    output_parts = []
+
+    for turn in turns:
+        if turn["role"] == "user":
+            input_parts.append(f"User: {turn['content']}\n")
+        elif turn["role"] == "assistant":
+            output_parts.append(f"Assistant: {turn['content']}\n")
+            # Each assistant turn becomes part of the training target
+            input_parts.append(f"Assistant: ")
+
+    return {
+        "instruction": "".join(input_parts).strip(),
+        "output": "".join(output_parts).strip(),
+    }
+
+# Example multi-turn conversation
+conversation = [
+    {"role": "user", "content": "Hello, I'm a member of the Datawhale open-source community."},
+    {"role": "assistant", "content": "Hello! Nice to meet you. How can I help you today?"},
+    {"role": "user", "content": "Do you know what Datawhale does?"},
+    {"role": "assistant", "content": "Datawhale is an open-source organization focused on AI education. "
+                                     "They create learning materials, host study groups, and "
+                                     "build open-source projects to help people learn machine learning."},
+]
+
+multi_turn = build_multiturn_sample(conversation)
+print("=== INPUT ===")
+print(multi_turn["instruction"])
+print("\n=== OUTPUT (training target) ===")
+print(multi_turn["output"])</code></pre>
+
+      <p>
+        <strong>Why this format matters:</strong> By training on all assistant turns, the model learns to maintain context across turns. The causal attention mechanism ensures that when predicting turn 2's response, the model has access to turn 1's full exchange. This is what gives LLMs their conversational memory — not a separate memory module, but simply the attention mechanism applied to a longer context window.
+      </p>
+    </div>
+
+    <div class="takeaway">
+      <strong>Key Takeaway:</strong> SFT doesn't teach the model new knowledge — it teaches the model a new <em>behavior</em>. Pretraining gives the model the ability to predict the next token across all human text. Instruction tuning reshapes that ability into a useful interface: the model learns to treat text as commands rather than continuations. The technical mechanism is simple (loss masking on the instruction portion), but the effect is profound: it transforms a text completion engine into a conversational assistant.
+    </div>
+
+    <div class="card">
+      <h2>Why It Matters</h2>
+
+      <p>
+        <strong>For practitioners:</strong> If you're fine-tuning an LLM for a specific task, instruction tuning is almost always the right approach. Instead of task-specific fine-tuning (which was the BERT-era paradigm), you format your data as instructions and responses. A single instruction-tuned model can handle dozens of tasks that would have required separate fine-tuned models in the pre-LLM era.
+      </p>
+
+      <p>
+        <strong>For data strategy:</strong> The quality and diversity of your instruction dataset matters more than the size. OpenAI's InstructGPT used 10 instruction categories weighted by real API usage patterns (text generation at 45.6%, open-domain QA at 12.4%, brainstorming at 11.2%, etc.). Matching your instruction distribution to your target use cases is more effective than collecting millions of random instructions.
+      </p>
+
+      <p>
+        <strong>For cost decisions:</strong> SFT is dramatically cheaper than pretraining. While pretraining a 7B model requires thousands of GPU hours and terabytes of storage, instruction tuning the same model on a few billion tokens takes hours on a single GPU. This means even small teams can customize a pre-trained model for their domain — medical, legal, financial — without building anything from scratch.
+      </p>
+
+      <p>
+        <strong>For understanding model behavior:</strong> The loss-masking technique reveals something fundamental about how LLMs work. The model is <em>always</em> doing next-token prediction. What changes between pretraining and SFT is only which tokens contribute to the loss. This means the "instruction-following" capability isn't a separate mode — it's the same prediction mechanism, just trained on a different distribution of inputs. The model doesn't "know" it's following instructions; it's learned that certain input patterns (formatted as commands) should be followed by specific output patterns (formatted as responses).
+      </p>
+    </div>
+
+    <a class="back-link" href="index.html">&larr; Back to Lessons Index</a>
+  </div>
+</body>
+</html>
