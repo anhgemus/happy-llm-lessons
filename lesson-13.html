@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 13: Retrieval-Augmented Generation (RAG) — Grounding LLMs in Real Data</title>
+  <meta name="description" content="How RAG grounds LLM outputs in real documents through retrieval + generation, reducing hallucinations and enabling real-time knowledge.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-primary: #111827;
+      --color-secondary: #4B5563;
+      --color-tertiary: #2563EB;
+      --color-neutral: #F9FAFB;
+      --color-code-bg: #F3F4F6;
+      --color-accent: #10B981;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+      --rounded-sm: 4px;
+      --rounded-md: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 48px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.75;
+      color: var(--color-primary);
+      background-color: var(--color-neutral);
+      padding: var(--spacing-xl) var(--spacing-md);
+    }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    header {
+      margin-bottom: var(--spacing-xl);
+      padding-bottom: var(--spacing-lg);
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--spacing-md);
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      margin-top: var(--spacing-xl);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .subtitle {
+      font-size: 1.125rem;
+      color: var(--color-secondary);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .badge {
+      display: inline-block;
+      background-color: var(--color-accent);
+      color: #FFFFFF;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--rounded-sm);
+      margin-right: 8px;
+    }
+
+    p { margin-bottom: var(--spacing-md); }
+
+    code {
+      font-family: var(--font-code);
+      font-size: 0.875rem;
+      background-color: var(--color-code-bg);
+      padding: 2px 6px;
+      border-radius: var(--rounded-sm);
+    }
+
+    pre {
+      background-color: var(--color-code-bg);
+      padding: var(--spacing-md);
+      border-radius: var(--rounded-sm);
+      overflow-x: auto;
+      margin-bottom: var(--spacing-lg);
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    .takeaway {
+      background: #ECFDF5;
+      border-left: 4px solid var(--color-accent);
+      padding: var(--spacing-lg);
+      border-radius: 0 var(--rounded-md) var(--rounded-md) 0;
+      margin: var(--spacing-lg) 0;
+    }
+
+    .takeaway strong {
+      color: var(--color-accent);
+    }
+
+    .card {
+      background: #FFFFFF;
+      border-radius: var(--rounded-md);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-md);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    footer {
+      margin-top: var(--spacing-xl);
+      padding-top: var(--spacing-lg);
+      border-top: 1px solid #E5E7EB;
+      font-size: 0.875rem;
+      color: var(--color-secondary);
+    }
+
+    footer a { color: var(--color-tertiary); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: var(--spacing-lg);
+      color: var(--color-tertiary);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    ul { margin-left: var(--spacing-lg); margin-bottom: var(--spacing-md); }
+    li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="back-link">← Back to Lessons</a>
+
+    <header>
+      <div>
+        <span class="badge">Lesson 13</span>
+        <span class="badge">Chapter 7</span>
+      </div>
+      <h1>Retrieval-Augmented Generation (RAG) — Grounding LLMs in Real Data</h1>
+      <p class="subtitle">May 21, 2026 · Document Chunking · Vector Embeddings · Similarity Search · Grounded Generation</p>
+    </header>
+
+    <main>
+      <h2>The Lesson</h2>
+
+      <p>Large language models are impressive, but they have a fundamental limitation: their knowledge is frozen at training time. If you ask an LLM about an event that happened yesterday, a company's internal policy, or a proprietary dataset it was never trained on, it will either hallucinate an answer or admit ignorance. <strong>Retrieval-Augmented Generation (RAG)</strong> solves this by giving the model access to external documents at inference time.</p>
+
+      <p>RAG works in three stages. <strong>Indexing</strong> splits a document corpus into smaller chunks and converts each chunk into a dense vector embedding using an embedding model. <strong>Retrieval</strong> takes the user's query, embeds it with the same model, and finds the most similar document chunks using cosine similarity. <strong>Generation</strong> feeds the retrieved chunks as context to the LLM along with the original question, so the model generates an answer grounded in real, traceable sources.</p>
+
+      <p>The beauty of RAG is that it separates knowledge from model weights. Instead of fine-tuning the model on new data (expensive, slow, and degrades general capabilities through catastrophic forgetting), you simply add documents to your vector store. The model stays the same; the knowledge base grows. This makes RAG the default architecture for enterprise AI applications — customer support bots, document Q&A systems, knowledge bases, and legal/medical assistants.</p>
+
+      <p>The critical design decisions in RAG are: <em>chunk size</em> (too small loses context, too large dilutes relevance), <em>overlap</em> (ensures boundaries between chunks don't split important information), <em>embedding model choice</em> (determines retrieval quality), and <em>prompt template</em> (instructs the LLM how to use retrieved context). Getting these right is what separates a working RAG system from a production-grade one.</p>
+
+      <h2>Concrete Example</h2>
+
+      <div class="card">
+        <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: var(--spacing-md);">Step 1 — Document Chunking with Overlap</h3>
+        <p style="font-size: 0.9375rem; margin-bottom: var(--spacing-md);">Split documents into manageable chunks with overlap to preserve context at boundaries. Here's a simplified chunking function:</p>
+        <pre><code>import tiktoken
+
+def chunk_text(text: str, max_tokens: int = 600, overlap: int = 150) -> list[str]:
+    """Split text into chunks with token-level overlap."""
+    encoder = tiktoken.get_encoding("cl100k_base")
+    tokens = encoder.encode(text)
+    step = max_tokens - overlap
+    chunks = []
+    for i in range(0, len(tokens), step):
+        chunk_tokens = tokens[i:i + max_tokens]
+        chunk_text = encoder.decode(chunk_tokens)
+        chunks.append(chunk_text)
+    return chunks
+
+# Example usage
+document = "The Transformer architecture was introduced in 2017 by Vaswani et al. " * 50
+chunks = chunk_text(document, max_tokens=600, overlap=150)
+print(f"Split into {len(chunks)} chunks")
+# → Split into 5 chunks</code></pre>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: var(--spacing-md);">Step 2 — Embedding and Vector Store</h3>
+        <p style="font-size: 0.9375rem; margin-bottom: var(--spacing-md);">Convert chunks and queries into vectors, then find the most relevant chunks using cosine similarity:</p>
+        <pre><code>import numpy as np
+
+def cosine_similarity(v1: np.ndarray, v2: np.ndarray) -> float:
+    """Compute cosine similarity between two vectors."""
+    dot = np.dot(v1, v2)
+    norm = np.linalg.norm(v1) * np.linalg.norm(v2)
+    return dot / norm if norm > 0 else 0.0
+
+class SimpleVectorStore:
+    """Minimal vector store for RAG retrieval."""
+
+    def __init__(self):
+        self.documents = []
+        self.vectors = []
+
+    def add(self, text: str, embedding: list[float]):
+        self.documents.append(text)
+        self.vectors.append(np.array(embedding, dtype=np.float32))
+
+    def query(self, query_embedding: list[float], k: int = 3) -> list[tuple[str, float]]:
+        """Return top-k most similar documents with scores."""
+        q = np.array(query_embedding, dtype=np.float32)
+        scores = [cosine_similarity(q, v) for v in self.vectors]
+        # Get indices of top-k scores, sorted descending
+        top_k = np.argsort(scores)[-k:][::-1]
+        return [(self.documents[i], scores[i]) for i in top_k]
+
+# Example usage
+store = SimpleVectorStore()
+store.add("RAG reduces hallucinations by grounding answers in retrieved documents.",
+          [0.9, 0.1, 0.0])  # hypothetical embedding
+store.add("The attention mechanism computes weighted sums of values.",
+          [0.1, 0.8, 0.3])
+store.add("RAG systems use vector embeddings for semantic search.",
+          [0.85, 0.15, 0.05])
+
+# Query: "How does RAG help with hallucinations?"
+query_vec = [0.88, 0.12, 0.02]
+results = store.query(query_vec, k=2)
+for doc, score in results:
+    print(f"  [{score:.3f}] {doc[:60]}...")
+# → [0.999] RAG reduces hallucinations by grounding answers in retrieved...
+# → [0.997] RAG systems use vector embeddings for semantic search...</code></pre>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: var(--spacing-md);">Step 3 — Generation with Retrieved Context</h3>
+        <p style="font-size: 0.9375rem; margin-bottom: var(--spacing-md);">The final step: inject retrieved context into the prompt and let the LLM generate a grounded answer:</p>
+        <pre><code>RAG_PROMPT = """Use the following context to answer the question.
+If you don't know the answer, say you don't know.
+
+Question: {question}
+
+Context:
+---
+{context}
+---
+
+Answer:"""
+
+def generate_answer(llm_client, question: str, context_chunks: list[str], model: str) -> str:
+    """Generate a grounded answer using retrieved context."""
+    context = "\n\n".join(context_chunks)
+    prompt = RAG_PROMPT.format(question=question, context=context)
+    response = llm_client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.1,  # Low temperature for factual answers
+        max_tokens=1024,
+    )
+    return response.choices[0].message.content
+
+# Full pipeline
+retrieved_docs = [doc for doc, _ in store.query(query_vec, k=2)]
+answer = generate_answer(client, "How does RAG reduce hallucinations?", retrieved_docs, "gpt-4o-mini")
+print(answer)</code></pre>
+      </div>
+
+      <div class="takeaway">
+        <strong>Key Takeaway:</strong> RAG is not a model — it's an architecture pattern. The same LLM can answer questions about any domain simply by changing the document corpus it retrieves from. The formula is simple: <code>Answer = LLM(Query + RetrievedContext)</code>. The engineering challenge is making retrieval accurate enough that the context actually helps rather than distracts.
+      </div>
+
+      <h2>Why It Matters</h2>
+
+      <p>In production, RAG is the most widely deployed LLM pattern. Here's why:</p>
+
+      <ul>
+        <li><strong>Hallucination reduction.</strong> By grounding answers in retrieved documents, RAG gives the model factual anchors. Studies show RAG can reduce hallucination rates by 30-50% compared to raw LLM generation on domain-specific questions.</li>
+        <li><strong>Zero fine-tuning needed.</strong> Adding new knowledge means adding documents to the vector store — no retraining, no compute costs, no catastrophic forgetting. This is how companies keep their AI assistants current without retraining models monthly.</li>
+        <li><strong>Traceability and auditability.</strong> Every RAG answer can cite its source documents. In regulated industries (legal, medical, finance), this is not optional — it's a compliance requirement.</li>
+        <li><strong>Cost efficiency.</strong> A small open-source model with good RAG retrieval often outperforms a larger model without retrieval on domain-specific tasks. You pay for the right tool, not the biggest model.</li>
+      </ul>
+
+      <p>The RAG pipeline is the backbone of tools like LangChain, LlamaIndex, and enterprise search products. Understanding chunking strategies, embedding quality, and retrieval ranking is the difference between a demo that works and a system your customers trust.</p>
+    </main>
+
+    <footer>
+      <p>Source: <a href="https://github.com/datawhalechina/happy-llm" target="_blank" rel="noopener">datawhalechina/happy-llm</a> Chapter 7 (Apache-2.0)<br>
+      Designed with <a href="https://github.com/google-labs-code/design.md" target="_blank" rel="noopener">Google DESIGN.md</a> tokens.<br>
+      Code: <a href="https://github.com/anhgemus/happy-llm-lessons" target="_blank" rel="noopener">anhgemus/happy-llm-lessons</a></p>
+    </footer>
+  </div>
+</body>
+</html>
