@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 14: LLM Agents — Giving Models Tools, Memory, and Autonomy</title>
+  <meta name="description" content="How LLM Agents extend language models with tool use, planning, memory, and reflection to go beyond passive text generation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-primary: #111827;
+      --color-secondary: #4B5563;
+      --color-tertiary: #2563EB;
+      --color-neutral: #F9FAFB;
+      --color-code-bg: #F3F4F6;
+      --color-accent: #10B981;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+      --rounded-sm: 4px;
+      --rounded-md: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 48px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.75;
+      color: var(--color-primary);
+      background-color: var(--color-neutral);
+      padding: var(--spacing-xl) var(--spacing-md);
+    }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    header {
+      margin-bottom: var(--spacing-xl);
+      padding-bottom: var(--spacing-lg);
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--spacing-md);
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      margin-top: var(--spacing-xl);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .subtitle {
+      font-size: 1.125rem;
+      color: var(--color-secondary);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .badge {
+      display: inline-block;
+      background-color: var(--color-accent);
+      color: #FFFFFF;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--rounded-sm);
+      margin-right: 8px;
+    }
+
+    p { margin-bottom: var(--spacing-md); }
+
+    code {
+      font-family: var(--font-code);
+      font-size: 0.875rem;
+      background-color: var(--color-code-bg);
+      padding: 2px 6px;
+      border-radius: var(--rounded-sm);
+    }
+
+    pre {
+      background-color: var(--color-code-bg);
+      padding: var(--spacing-md);
+      border-radius: var(--rounded-sm);
+      overflow-x: auto;
+      margin-bottom: var(--spacing-lg);
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    .takeaway {
+      background: #ECFDF5;
+      border-left: 4px solid var(--color-accent);
+      padding: var(--spacing-lg);
+      border-radius: 0 var(--rounded-md) var(--rounded-md) 0;
+      margin: var(--spacing-lg) 0;
+    }
+
+    .takeaway strong {
+      color: var(--color-accent);
+    }
+
+    .card {
+      background: #FFFFFF;
+      border-radius: var(--rounded-md);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-md);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    footer {
+      margin-top: var(--spacing-xl);
+      padding-top: var(--spacing-lg);
+      border-top: 1px solid #E5E7EB;
+      font-size: 0.875rem;
+      color: var(--color-secondary);
+    }
+
+    footer a { color: var(--color-tertiary); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: var(--spacing-lg);
+      color: var(--color-tertiary);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    ul { margin-left: var(--spacing-lg); margin-bottom: var(--spacing-md); }
+    li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="back-link">← Back to Lessons</a>
+
+    <header>
+      <div>
+        <span class="badge">Lesson 14</span>
+        <span class="badge">Chapter 7</span>
+      </div>
+      <h1>LLM Agents — Giving Models Tools, Memory, and Autonomy</h1>
+      <p class="subtitle">May 27, 2026 · Tool Use · Planning · ReAct Pattern · Function Calling API</p>
+    </header>
+
+    <main>
+      <h2>The Lesson</h2>
+
+      <p>A standard LLM is a brilliant but passive text engine: you give it a prompt, it returns text. An <strong>LLM Agent</strong> transforms that passive model into an active system that can plan, use tools, remember context, and iterate toward a goal. The analogy is sharp: a traditional LLM is like a knowledgeable librarian who can only answer questions from memory. An Agent is a personal assistant who can look things up, run calculations, make phone calls, and adjust plans based on what it learns along the way.</p>
+
+      <p>The architecture of an LLM Agent rests on four pillars. <strong>Goal understanding</strong> means the Agent receives a high-level objective — "plan a weekend trip to Beijing" — rather than a single prompt. <strong>Planning</strong> decomposes that goal into executable sub-steps: search attractions, check weather, compare flight prices, find hotels, call booking APIs. <strong>Memory</strong> provides both short-term context (the current conversation state) and long-term storage (retrieving information from past interactions or external knowledge bases). <strong>Tool use</strong> lets the Agent call external APIs, execute code, query databases, or search the web — bridging the gap between language understanding and real-world action.</p>
+
+      <p>Agents fall into several categories based on their design philosophy. <strong>Task-oriented agents</strong> focus on well-defined domains like customer service or code generation, with predefined workflows and specific toolsets. <strong>Planning and reasoning agents</strong> emphasize autonomous task decomposition, often using frameworks like <em>ReAct</em> (Reason + Act), where the model alternates between thinking about what to do next and executing actions. <strong>Multi-agent systems</strong> coordinate multiple specialized agents — one plans, one executes, one reviews — communicating and collaborating like a software team. <strong>Exploration and learning agents</strong> go further, actively learning from environment feedback and adjusting strategies over time, similar to reinforcement learning agents.</p>
+
+      <p>The technical breakthrough that made Agents practical is <strong>function calling</strong> (or tool calling) in the OpenAI-compatible API. Instead of hoping the model outputs text that you parse, the API lets you declare tools as JSON schemas. The model decides whether to call a tool, returns structured arguments, and you execute the function and feed the result back. This creates a clean loop: user → model → tool call → tool result → model → final answer. The entire cycle can repeat multiple times until the Agent reaches a satisfactory conclusion.</p>
+
+      <h2>Concrete Example</h2>
+
+      <div class="card">
+        <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: var(--spacing-md);">Step 1 — Define Tool Functions</h3>
+        <p style="font-size: 0.9375rem; margin-bottom: var(--spacing-md);">Each tool is a Python function with a clear docstring. The docstring and type hints are automatically converted into the JSON schema the API needs:</p>
+        <pre><code>from datetime import datetime
+
+def get_current_datetime() -> str:
+    """Get the current date and time.
+    Returns: A formatted string like '2026-05-27 14:30:00'."""
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def count_letter(text: str, letter: str) -> str:
+    """Count occurrences of a letter in a string.
+    Args:
+        text: The string to search.
+        letter: The single character to count.
+    Returns: The count as a string."""
+    return str(text.count(letter))
+
+def add(a: float, b: float) -> str:
+    """Add two numbers together.
+    Args:
+        a: First number.
+        b: Second number.
+    Returns: The sum as a string."""
+    return str(a + b)</code></pre>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: var(--spacing-md);">Step 2 — Convert Functions to JSON Schema</h3>
+        <p style="font-size: 0.9375rem; margin-bottom: var(--spacing-md);">The OpenAI API expects tools in a specific JSON format. This helper extracts function signatures using Python's <code>inspect</code> module:</p>
+        <pre><code>import inspect
+import json
+
+def function_to_json(func) -> dict:
+    """Convert a Python function to an OpenAI tool schema."""
+    sig = inspect.signature(func)
+    doc = inspect.getdoc(func) or ""
+
+    parameters = {}
+    required = []
+    for name, param in sig.parameters.items():
+        param_type = "string"  # default
+        if param.annotation != inspect.Parameter.empty:
+            if "float" in str(param.annotation) or "int" in str(param.annotation):
+                param_type = "number"
+            elif "bool" in str(param.annotation):
+                param_type = "boolean"
+        parameters[name] = {"type": param_type}
+        if param.default == inspect.Parameter.empty:
+            required.append(name)
+
+    return {
+        "type": "function",
+        "function": {
+            "name": func.__name__,
+            "description": doc,
+            "parameters": {
+                "type": "object",
+                "properties": parameters,
+                "required": required,
+            },
+        },
+    }
+
+# Example output for get_current_datetime:
+schema = function_to_json(get_current_datetime)
+print(json.dumps(schema, indent=2))
+# {
+#   "type": "function",
+#   "function": {
+#     "name": "get_current_datetime",
+#     "description": "Get the current date and time...",
+#     "parameters": {"type": "object", "properties": {}, "required": []}
+#   }
+# }</code></pre>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: var(--spacing-md);">Step 3 — The Agent Loop</h3>
+        <p style="font-size: 0.9375rem; margin-bottom: var(--spacing-md);">The core Agent class manages the conversation loop: send prompt → receive response → if tool call, execute and retry → return final answer:</p>
+        <pre><code>from openai import OpenAI
+from typing import List, Dict, Any
+
+SYSTEM_PROMPT = """You are a helpful AI assistant.
+When the user's question requires using a tool, you can call the
+appropriate tool from the provided tool list."""
+
+class Agent:
+    def __init__(self, client: OpenAI, model: str, tools: List = []):
+        self.client = client
+        self.model = model
+        self.tools = tools
+        self.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+    def get_tool_schema(self) -> List[Dict[str, Any]]:
+        return [function_to_json(tool) for tool in self.tools]
+
+    def handle_tool_call(self, tool_call, available_tools: dict):
+        """Execute a tool call and return the result message."""
+        func_name = tool_call.function.name
+        func_args = json.loads(tool_call.function.arguments)
+        func_id = tool_call.id
+
+        # Execute the tool
+        result = available_tools[func_name](**func_args)
+
+        return {
+            "role": "tool",
+            "content": str(result),
+            "tool_call_id": func_id,
+        }
+
+    def get_completion(self, prompt: str) -> str:
+        self.messages.append({"role": "user", "content": prompt})
+
+        # First API call — model may request tool use
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=self.messages,
+            tools=self.get_tool_schema(),
+        )
+
+        # If the model called a tool, execute it and call again
+        if response.choices[0].message.tool_calls:
+            self.messages.append({
+                "role": "assistant",
+                "content": response.choices[0].message.content,
+            })
+
+            tool_map = {t.__name__: t for t in self.tools}
+            for tc in response.choices[0].message.tool_calls:
+                print(f"Calling tool: {tc.function.name}({tc.function.arguments})")
+                self.messages.append(self.handle_tool_call(tc, tool_map))
+
+            # Second API call — model generates final answer with tool results
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=self.messages,
+                tools=self.get_tool_schema(),
+            )
+
+        self.messages.append({
+            "role": "assistant",
+            "content": response.choices[0].message.content,
+        })
+        return response.choices[0].message.content</code></pre>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: var(--spacing-md);">Step 4 — Running the Agent</h3>
+        <p style="font-size: 0.9375rem; margin-bottom: var(--spacing-md);">Instantiate the agent and interact. Watch how the model decides when to use tools and when to answer directly:</p>
+        <pre><code>client = OpenAI(
+    api_key="YOUR_API_KEY",
+    base_url="https://api.openai.com/v1",
+)
+
+agent = Agent(
+    client=client,
+    model="gpt-4o-mini",
+    tools=[get_current_datetime, count_letter, add],
+)
+
+# Example interactions:
+print(agent.get_completion("What time is it now?"))
+# → Calling tool: get_current_datetime({})
+# → The current time is 2026-05-27 14:30:00.
+
+print(agent.get_completion("How many 'r's are in 'strawberry'?"))
+# → Calling tool: count_letter({"text": "strawberry", "letter": "r"})
+# → The word "strawberry" contains 3 occurrences of the letter 'r'.
+
+print(agent.get_completion("What's 3.14 + 2.86?"))
+# → Calling tool: add({"a": 3.14, "b": 2.86})
+# → 3.14 + 2.86 = 6.0</code></pre>
+      </div>
+
+      <div class="takeaway">
+        <strong>Key Takeaway:</strong> An LLM Agent is not a different model — it's the same LLM wrapped in a control loop. The formula is <code>Agent = LLM + Tools + Loop</code>. The model decides <em>what</em> to do, the tools determine <em>what it can</em> do, and the loop lets it iterate until the task is done. This pattern turns a text generator into an autonomous problem solver.
+      </div>
+
+      <h2>Why It Matters</h2>
+
+      <p>Agents represent the most significant shift in how LLMs are used in production. Here's why they matter:</p>
+
+      <ul>
+        <li><strong>Beyond hallucination-prone guessing.</strong> When a model needs to compare numbers, check the current time, or look up live data, tool calls give it ground truth. The "strawberry" problem (models famously miscounting letters) is solved by calling a counting function rather than relying on pattern matching.</li>
+        <li><strong>The ReAct pattern is everywhere.</strong> frameworks like LangGraph, CrewAI, AutoGen, and OpenAI's own Assistants API all build on this core loop. Understanding the pattern lets you cut through framework complexity and see what's actually happening.</li>
+        <li><strong>Multi-agent systems are the next frontier.</strong> Just as microservices replaced monoliths in backend engineering, multi-agent architectures are replacing single-LLM pipelines. Specialized agents for research, coding, review, and deployment collaborate like a team — and the coordination logic is the new engineering challenge.</li>
+        <li><strong>Function calling is the standard interface.</strong> Every major provider (OpenAI, Anthropic, Google, Mistral) now supports tool/function calling natively. This is no longer a hack — it's the primary way production systems interact with LLMs.</li>
+      </ul>
+
+      <p>If RAG is about giving the model access to external knowledge, Agents are about giving the model the ability to <em>act</em> on the world. Together, they form the two pillars of modern LLM applications: knowledge grounding and tool-assisted autonomy.</p>
+    </main>
+
+    <footer>
+      <p>Source: <a href="https://github.com/datawhalechina/happy-llm" target="_blank" rel="noopener">datawhalechina/happy-llm</a> Chapter 7, Section 7.3 (Apache-2.0)<br>
+      Designed with <a href="https://github.com/google-labs-code/design.md" target="_blank" rel="noopener">Google DESIGN.md</a> tokens.<br>
+      Code: <a href="https://github.com/anhgemus/happy-llm-lessons" target="_blank" rel="noopener">anhgemus/happy-llm-lessons</a></p>
+    </footer>
+  </div>
+</body>
+</html>
